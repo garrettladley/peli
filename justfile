@@ -1,5 +1,8 @@
 set dotenv-load := true
 
+# OS-aware binary extension
+exe := if os() == "windows" { ".exe" } else { "" }
+
 # default recipe - show help
 default:
     @just --list --unsorted
@@ -21,12 +24,12 @@ run:
 # Build the application
 [group('dev')]
 build:
-    go build -o peli ./cmd/peli
+    go build -o peli{{exe}} ./cmd/peli
 
 # Build release binary (stripped)
 [group('dev')]
 build-release:
-    go build -ldflags="-s -w" -o peli ./cmd/peli
+    go build -ldflags="-s -w" -o peli{{exe}} ./cmd/peli
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Testing
@@ -138,9 +141,18 @@ seed:
 
 # Clean build artifacts
 [group('maint')]
+[unix]
 clean:
     rm -f peli coverage.txt
     rm -rf dist/
+
+# Clean build artifacts (Windows)
+[group('maint')]
+[windows]
+clean:
+    if exist peli.exe del peli.exe
+    if exist coverage.txt del coverage.txt
+    if exist dist rmdir /s /q dist
 
 # Update Go dependencies
 [group('maint')]
