@@ -72,7 +72,7 @@ func (s SearchRange) CalculateProgress() int {
 // Render returns the rendered search range, automatically choosing rich or compact.
 func (s SearchRange) Render() string {
 	total := len(s.Ranked)
-	estimatedWidth := total * 5 // Each position takes ~5 chars
+	estimatedWidth := total * 5 // each position takes ~5 chars
 
 	if estimatedWidth <= s.ContentWidth-4 {
 		return s.RenderRich()

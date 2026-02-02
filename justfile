@@ -80,7 +80,7 @@ check: fmt modernize lint test
 # ─────────────────────────────────────────────────────────────────────────────
 
 migrations_path := "internal/migrations/sqlite/sql"
-db_path := env("DB_PATH", "~/.peli/peli.db")
+db_path := env("DB_PATH", home_directory() / ".peli" / "peli.db")
 
 # Generate sqlc code
 [group('db')]
