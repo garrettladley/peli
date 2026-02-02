@@ -129,22 +129,17 @@ func (m model) updateInputs(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) startRanking() (tea.Model, tea.Cmd) {
-	ctx := context.Background()
-
-	newR, err := m.svc.Create(ctx, db.CreateRestaurantParams{
+	// keep in memory only - don't save to DB until ranking completes
+	m.newRestaurant = db.Restaurant{
+		ID:       0, // temporary, will be assigned on commit
 		Name:     m.nameInput.Value(),
 		Cuisine:  m.cuisineInput.Value(),
 		Elo:      m.cfg.InitialElo,
 		Score:    m.cfg.InitialScore,
 		Position: int64(len(m.restaurants)),
-	})
-	if err != nil {
-		m.err = err
-		return m, nil
 	}
 
-	m.newRestaurant = newR
-	m.binarySearch = ranking.NewBinarySearch(newR, m.restaurants)
+	m.binarySearch = ranking.NewBinarySearch(m.newRestaurant, m.restaurants)
 
 	if m.binarySearch.Done {
 		return m.finishRanking()
@@ -160,10 +155,9 @@ func (m model) handleCompareKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", keyQuit:
 		return m, tea.Quit
 	case keyEsc:
-		ctx := context.Background()
-		_ = m.svc.Delete(ctx, m.newRestaurant.ID)
+		// restaurant is only in memory, just go back to home
 		m.screen = screenHome
-		return m, m.loadRestaurants
+		return m, nil
 	case "left", "h", "1":
 		m.selected = 0
 		return m, nil
@@ -186,6 +180,20 @@ func (m model) finishRanking() (tea.Model, tea.Cmd) {
 	ctx := context.Background()
 	insertPos := m.binarySearch.InsertAt
 
+	// now actually create the restaurant in DB
+	newR, err := m.svc.Create(ctx, db.CreateRestaurantParams{
+		Name:     m.newRestaurant.Name,
+		Cuisine:  m.newRestaurant.Cuisine,
+		Elo:      m.newRestaurant.Elo,
+		Score:    m.newRestaurant.Score,
+		Position: int64(insertPos),
+	})
+	if err != nil {
+		m.err = err
+		return m, nil
+	}
+	m.newRestaurant = newR
+
 	if err := m.svc.ShiftPositions(ctx, int64(insertPos)); err != nil {
 		m.err = err
 		return m, nil
@@ -196,11 +204,20 @@ func (m model) finishRanking() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// record comparisons with real ID (was 0 during ranking)
 	for _, comp := range m.binarySearch.Comparisons {
+		winnerID := comp.WinnerID
+		loserID := comp.LoserID
+		if winnerID == 0 {
+			winnerID = m.newRestaurant.ID
+		}
+		if loserID == 0 {
+			loserID = m.newRestaurant.ID
+		}
 		if err := m.svc.RecordComparison(ctx, db.RecordComparisonParams{
-			WinnerID:   comp.WinnerID,
+			WinnerID:   winnerID,
 			WinnerName: comp.WinnerName,
-			LoserID:    comp.LoserID,
+			LoserID:    loserID,
 			LoserName:  comp.LoserName,
 		}); err != nil {
 			m.err = err

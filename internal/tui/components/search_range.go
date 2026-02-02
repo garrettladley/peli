@@ -210,7 +210,7 @@ func (s SearchRange) RenderCompact() string {
 			style = searchRangeEliminated
 		}
 
-		line := fmt.Sprintf("  #%-3d %s  %s", i+1, status, xstrings.TruncateWithEllipsis(r.Name, 20))
+		line := fmt.Sprintf("  #%-3d %s  %s", i+1, status, xstrings.Truncate(r.Name, 20))
 		b.WriteString(style.Render(line))
 		b.WriteString("\n")
 	}

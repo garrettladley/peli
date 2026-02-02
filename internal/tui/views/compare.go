@@ -11,6 +11,10 @@ import (
 	"github.com/garrettladley/peli/internal/xstrings"
 )
 
+const (
+	decisionNameMaxLen = 15
+)
+
 var (
 	compareTitleStyle = lipgloss.NewStyle().
 				Bold(true).
@@ -37,9 +41,6 @@ var (
 
 	decisionLoseStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#ef4444"))
-
-	decisionTreeBranch = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#ffffff"))
 )
 
 // CompareParams holds parameters for rendering the compare view.
@@ -114,19 +115,21 @@ func RenderCompare(p CompareParams) string {
 	b.WriteString(sr.Render())
 	b.WriteString("\n")
 
-	// decisions section
+	// decisions section - center header and tree as a unit
 	b.WriteString("\n")
-	b.WriteString(sectionHeader.Render("◆ DECISIONS"))
+	b.WriteString(lipgloss.PlaceHorizontal(p.ContentWidth, lipgloss.Center, sectionHeader.Render("◆ DECISIONS")))
 	b.WriteString("\n")
 	if len(p.BinarySearch.Comparisons) > 0 {
-		b.WriteString(renderDecisionTree(p.BinarySearch.Comparisons, p.NewRestaurant))
+		tree := renderDecisions(p.BinarySearch.Comparisons, p.NewRestaurant.ID)
+		b.WriteString(lipgloss.PlaceHorizontal(p.ContentWidth, lipgloss.Center, strings.TrimSuffix(tree, "\n")))
+		b.WriteString("\n")
 	} else {
-		b.WriteString(compareHelpStyle.Render("  (none yet)"))
+		b.WriteString(lipgloss.PlaceHorizontal(p.ContentWidth, lipgloss.Center, compareHelpStyle.Render("(none yet)")))
 		b.WriteString("\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(compareHelpStyle.Render("← → select • enter confirm • esc cancel"))
+	b.WriteString(lipgloss.PlaceHorizontal(p.ContentWidth, lipgloss.Center, compareHelpStyle.Render("← → select • enter confirm • esc cancel")))
 
 	return b.String()
 }
@@ -142,33 +145,36 @@ func renderCompareHeader(title, help string, width int) string {
 	return titleRendered + strings.Repeat(" ", gap) + helpRendered
 }
 
-func renderDecisionTree(comparisons []ranking.CompareResult, newRest db.Restaurant) string {
-	var b strings.Builder
-	total := len(comparisons)
-
-	for i, comp := range comparisons {
-		var branch string
-		if i == total-1 {
-			branch = "  └──"
+func renderDecisions(comparisons []ranking.CompareResult, newRestID int64) string {
+	var result strings.Builder
+	for _, comp := range comparisons {
+		if comp.WinnerID == newRestID {
+			result.WriteString(renderWinDecision(comp.LoserName))
 		} else {
-			branch = "  ├──"
+			result.WriteString(renderLoseDecision(comp.WinnerName))
 		}
-		b.WriteString(decisionTreeBranch.Render(branch))
-		b.WriteString(" ")
-
-		if comp.WinnerID == newRest.ID {
-			b.WriteString(decisionWinStyle.Render("▲ "))
-			b.WriteString(decisionWinStyle.Render(xstrings.Truncate(newRest.Name, 15)))
-			b.WriteString(compareHelpStyle.Render(" beats "))
-			b.WriteString(decisionLoseStyle.Render(xstrings.Truncate(comp.LoserName, 15)))
-		} else {
-			b.WriteString(decisionLoseStyle.Render("▼ "))
-			b.WriteString(decisionLoseStyle.Render(xstrings.Truncate(newRest.Name, 15)))
-			b.WriteString(compareHelpStyle.Render(" under "))
-			b.WriteString(decisionWinStyle.Render(xstrings.Truncate(comp.WinnerName, 15)))
-		}
-		b.WriteString("\n")
+		result.WriteString("\n")
 	}
+	return result.String()
+}
 
-	return b.String()
+// fixed width: "▲ beat    " (10) + name (15) = 25
+const decisionLineWidth = 10 + decisionNameMaxLen
+
+func renderWinDecision(opponent string) string {
+	line := decisionWinStyle.Render("▲ beat    ") +
+		compareHelpStyle.Render(xstrings.Truncate(opponent, decisionNameMaxLen))
+	if w := lipgloss.Width(line); w < decisionLineWidth {
+		line += strings.Repeat(" ", decisionLineWidth-w)
+	}
+	return line
+}
+
+func renderLoseDecision(opponent string) string {
+	line := decisionLoseStyle.Render("▼ lost to ") +
+		compareHelpStyle.Render(xstrings.Truncate(opponent, decisionNameMaxLen))
+	if w := lipgloss.Width(line); w < decisionLineWidth {
+		line += strings.Repeat(" ", decisionLineWidth-w)
+	}
+	return line
 }

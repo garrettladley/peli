@@ -85,8 +85,8 @@ func RenderHome(p HomeParams) string {
 			line := fmt.Sprintf("%s%-4d %-24s %-14s %s %.1f",
 				cursor,
 				r.Position+1,
-				xstrings.TruncateWithEllipsis(r.Name, p.NameTruncate),
-				xstrings.TruncateWithEllipsis(r.Cuisine, p.CuisineTruncate),
+				xstrings.Truncate(r.Name, p.NameTruncate),
+				xstrings.Truncate(r.Cuisine, p.CuisineTruncate),
 				scoreBar,
 				r.Score,
 			)

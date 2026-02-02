@@ -83,7 +83,7 @@ check: fmt modernize lint test
 # ─────────────────────────────────────────────────────────────────────────────
 
 migrations_path := "internal/migrations/sqlite/sql"
-db_path := env("DB_PATH", home_directory() / ".peli" / "peli.db")
+db_path := home_directory() / ".peli" / "peli.db"
 
 # Generate sqlc code
 [group('db')]
@@ -133,6 +133,20 @@ migrate-force version:
 # Seed database with sample data
 [group('db')]
 seed:
+    go run ./cmd/peli -seed
+
+# Delete database and reseed
+[group('db')]
+[unix]
+reseed:
+    rm -f {{db_path}}
+    go run ./cmd/peli -seed
+
+# Delete database and reseed (Windows)
+[group('db')]
+[windows]
+reseed:
+    if exist "{{db_path}}" del "{{db_path}}"
     go run ./cmd/peli -seed
 
 # ─────────────────────────────────────────────────────────────────────────────
