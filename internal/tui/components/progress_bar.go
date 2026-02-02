@@ -70,10 +70,7 @@ func WithEmptyChar(c string) ProgressBarOption {
 
 // Render returns the rendered progress bar string.
 func (p ProgressBar) Render() string {
-	filled := min(int(p.Percentage/100.0*float64(p.Width)), p.Width)
-	if filled < 0 {
-		filled = 0
-	}
+	filled := max(min(int(p.Percentage/100.0*float64(p.Width)), p.Width), 0)
 	empty := p.Width - filled
 
 	return p.FillStyle.Render(strings.Repeat(p.FillChar, filled)) +
