@@ -1,0 +1,9 @@
+.DS_Store
+.env
+/bin/
+/peli
+/tmp/
+/dist/
+*.db
+*.db-shm
+*.db-wal
